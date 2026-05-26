@@ -130,25 +130,65 @@ let back = try CBORDecoder().decode(CBOR.self, from: bytes)
 double) that exactly represents a given value — useful when you want
 deterministic floats without enabling full deterministic mode.
 
-## Comparison with PotentCBOR
+## Comparison with other Swift CBOR libraries
 
-This package and [PotentCBOR](https://github.com/outfoxx/PotentCodables) cover
-overlapping ground; pick based on your needs.
+There are several actively maintained Swift CBOR libraries. The
+table below compares the four most popular by GitHub stars at the
+time of writing (May 2026).
 
-|                          | CBORCodable | PotentCBOR |
-| ------------------------ | ----------- | ---------- |
-| RFC 8949 wire format     | ✓           | ✓          |
-| Codable bridge           | ✓           | ✓          |
-| Indefinite-length items  | preserves chunks | preserves chunks |
-| Deterministic mode       | RFC 8949 §4.2 | configurable |
-| Third-party dependencies | none        | PotentCodables core |
-| Half-float support       | manual, every platform | builtin where available |
-| `@Tagged` property wrapper | built in   | manual `CBORTaggedItem` |
-| Property-key style       | int or text per CodingKey | configurable |
+| Feature | **CBORCodable** | [SwiftCBOR][sc] | [PotentCBOR][pc] | [CBORCoding][cc] |
+|---|:---:|:---:|:---:|:---:|
+| GitHub stars (≈) | — | 168 | 82 | 56 |
+| RFC 8949 wire format | ✓ | ✓ | ✓ | ✓ |
+| `Codable` bridge | ✓ | ✓ | ✓ | ✓¹ |
+| Indefinite-length items | ✓ | manual open/close | ✓ | — |
+| Deterministic encoding (§4.2) | ✓ | — | ✓ | — |
+| Strict deterministic *decode* | ✓ | — | — | — |
+| Half-float encode + decode | ✓ | decode only² | ✓ | — |
+| Foundation tag bridges (Date / URL / UUID) | ✓ | — | ✓ | — |
+| `@Tagged` property wrapper | ✓ | — | — | — |
+| Diagnostic notation (§8) | ✓ | — | — | — |
+| Configurable decoder depth limit | ✓ | — | — | — |
+| Linux | ✓ | ✓ | ✓ | — |
+| Runtime dependencies | swift-collections | none | own core | none |
 
-If you're already on the PotentCodables stack, stay there. If you want a
-standalone dependency-free package with first-class deterministic-mode
-support and CBOR-tag-aware property wrappers, this one fits.
+¹ Map keys limited to `Int` and `String`.
+² Half-precision floats are decoded to `Float` but cannot be
+encoded — the encoder always produces single or double.
+
+### Picking one
+
+- **SwiftCBOR** is the de-facto popular choice — bare-bones, no
+  dependencies, fully cross-platform. Pick it if you want the
+  thinnest possible Codable layer over CBOR and don't need
+  deterministic mode, tag-aware property wrappers, or half-float
+  encoding.
+- **PotentCBOR** ships inside the [PotentCodables][pcs] umbrella
+  (alongside JSON, YAML, ASN.1). Pick it if you're already on that
+  stack, or want a feature-rich CBOR coder backed by a larger
+  serialization framework. Closest feature parity to this package
+  apart from the `@Tagged` wrapper, strict-decode mode, diagnostic
+  notation, and depth limit.
+- **CBORCoding** is Apple-platforms-only and intentionally minimal.
+  Pick it if your target list is just iOS/macOS/tvOS/watchOS, you
+  want a small surface, and you only need `Int` or `String` keys.
+- **CBORCodable** (this package) is what you want when you're
+  decoding signed payloads (`requireDeterministic`), building
+  content-addressable storage (deterministic encode mode),
+  shipping CBOR-tag-aware Swift types (`@Tagged`), or just want
+  diagnostic notation and a depth limit out of the box.
+
+There are also more niche options worth knowing about:
+[BCSwiftDCBOR][dcbor] focuses exclusively on §4.2 deterministic
+CBOR for blockchain use cases, and [swift-cyborg][cy] aims at
+low-level CBOR tooling.
+
+[sc]: https://github.com/valpackett/SwiftCBOR
+[pc]: https://github.com/outfoxx/PotentCodables/tree/master/Sources/PotentCBOR
+[pcs]: https://github.com/outfoxx/PotentCodables
+[cc]: https://github.com/SomeRandomiOSDev/CBORCoding
+[dcbor]: https://github.com/BlockchainCommons/BCSwiftDCBOR
+[cy]: https://github.com/dwaite/swift-cyborg
 
 ## Requirements
 
