@@ -1,3 +1,11 @@
+## 0.3.0 (2026-05-26)
+
+### Feat
+
+- add count and indefinite-form accessors on CBOR
+- add AnyValueEncoder and AnyValueDecoder
+- add AnyValue polymorphic value type
+
 ## 0.2.0 (2026-05-26)
 
 ### Feat
