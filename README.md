@@ -141,7 +141,7 @@ time of writing (May 2026).
 | GitHub stars (≈) | — | 168 | 82 | 56 |
 | RFC 8949 wire format | ✓ | ✓ | ✓ | ✓ |
 | `Codable` bridge | ✓ | ✓ | ✓ | ✓¹ |
-| Indefinite-length items | ✓ | manual open/close | ✓ | — |
+| Indefinite-length items | ✓ preserves chunks | manual open/close | decode-only³ | — |
 | Deterministic encoding (§4.2) | ✓ | — | ✓ | — |
 | Strict deterministic *decode* | ✓ | — | — | — |
 | Half-float encode + decode | ✓ | decode only² | ✓ | — |
@@ -155,6 +155,10 @@ time of writing (May 2026).
 ¹ Map keys limited to `Int` and `String`.
 ² Half-precision floats are decoded to `Float` but cannot be
 encoded — the encoder always produces single or double.
+³ PotentCBOR reads indefinite-length input, but its `CBOR` enum has
+no indefinite-length cases — byte / text string chunks are
+concatenated and indefinite arrays / maps are turned into
+definite ones on decode, so the chunk structure can't round-trip.
 
 ### Picking one
 
