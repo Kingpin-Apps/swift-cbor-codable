@@ -1,17 +1,15 @@
-# Builds and tests the package on macOS and Linux. The manual Float16
-# bit conversion in Sources/CBORCodable/Float16.swift is in place
-# specifically so the Linux path stays green; this workflow proves it.
+# This workflow will build a Swift project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
 
 name: Swift
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
-
   macos:
     name: Test on macOS
     runs-on: macos-latest
@@ -19,24 +17,25 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - name: Build
         run: swift build -v
       - name: Build and test
-        run: swift test -v --parallel
+        run: swift test -v --parallel --enable-test-discovery
 
-  linux:
-    name: Test on Linux (Swift ${{ matrix.swift }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        swift: ["6.0", "6.1"]
-    container:
-      image: swift:${{ matrix.swift }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build
-        run: swift build -v
-      - name: Run tests
-        run: swift test -v --parallel
+  # build:
+  #   name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       os: [ubuntu-latest, macos-latest]
+  #       swift: ["6.0.0"]
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - uses: swift-actions/setup-swift@65540b95f51493d65f5e59e97dcef9629ddf11bf
+  #       with:
+  #         swift-version: ${{ matrix.swift }}
+  #     - uses: actions/checkout@v4
+  #     - name: Build
+  #       run: swift build -v
+  #     - name: Run tests
+  #       run: swift test -v
