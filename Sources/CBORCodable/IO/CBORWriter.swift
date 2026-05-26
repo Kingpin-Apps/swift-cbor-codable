@@ -151,9 +151,37 @@ public struct CBORWriter {
             append(MajorType.simpleOrFloat.prefix | 27)
             appendBE(value.bitPattern)
 
-        case .indefiniteByteString, .indefiniteTextString,
-             .indefiniteArray, .indefiniteMap:
-            throw CBORError.unsupported("indefinite-length encoding lands in step 3")
+        case .indefiniteByteString(let chunks):
+            encodeIndefiniteHead(major: .byteString)
+            for chunk in chunks {
+                encodeHead(major: .byteString, argument: UInt64(chunk.count))
+                append(contentsOf: chunk)
+            }
+            encodeBreak()
+
+        case .indefiniteTextString(let chunks):
+            encodeIndefiniteHead(major: .textString)
+            for chunk in chunks {
+                let utf8 = Data(chunk.utf8)
+                encodeHead(major: .textString, argument: UInt64(utf8.count))
+                append(contentsOf: utf8)
+            }
+            encodeBreak()
+
+        case .indefiniteArray(let items):
+            encodeIndefiniteHead(major: .array)
+            for item in items {
+                try encode(item)
+            }
+            encodeBreak()
+
+        case .indefiniteMap(let dict):
+            encodeIndefiniteHead(major: .map)
+            for (k, v) in dict {
+                try encode(k)
+                try encode(v)
+            }
+            encodeBreak()
         }
     }
 }

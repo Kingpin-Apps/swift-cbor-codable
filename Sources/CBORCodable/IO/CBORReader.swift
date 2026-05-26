@@ -106,14 +106,14 @@ public struct CBORReader {
 
         case .byteString:
             if head.isIndefinite {
-                throw CBORError.unsupported("indefinite-length byte strings — step 3")
+                return .indefiniteByteString(try readIndefiniteByteStringChunks())
             }
             let count = try lengthInt(head.argument)
             return .byteString(try readBytes(count))
 
         case .textString:
             if head.isIndefinite {
-                throw CBORError.unsupported("indefinite-length text strings — step 3")
+                return .indefiniteTextString(try readIndefiniteTextStringChunks())
             }
             let count = try lengthInt(head.argument)
             let payload = try readBytes(count)
@@ -124,7 +124,7 @@ public struct CBORReader {
 
         case .array:
             if head.isIndefinite {
-                throw CBORError.unsupported("indefinite-length arrays — step 3")
+                return .indefiniteArray(try readIndefiniteArrayItems())
             }
             let count = try lengthInt(head.argument)
             var items: [CBOR] = []
@@ -136,7 +136,7 @@ public struct CBORReader {
 
         case .map:
             if head.isIndefinite {
-                throw CBORError.unsupported("indefinite-length maps — step 3")
+                return .indefiniteMap(try readIndefiniteMapEntries())
             }
             let count = try lengthInt(head.argument)
             var dict = OrderedDictionary<CBOR, CBOR>()
@@ -163,6 +163,97 @@ public struct CBORReader {
         let value = try decode()
         guard isAtEnd else { throw CBORError.trailingBytes(remaining: remaining) }
         return value
+    }
+
+    // MARK: - Indefinite-length helpers
+
+    /// True iff the next byte (if any) is the break stop-code (0xFF).
+    /// Does not advance.
+    private func peekBreak() -> Bool {
+        index < bytes.count && bytes[index] == cborBreakByte
+    }
+
+    private mutating func consumeBreak() throws {
+        guard !isAtEnd else { throw CBORError.prematureEnd }
+        index &+= 1
+    }
+
+    /// Read chunks of an indefinite-length byte string. Each chunk must be
+    /// a definite-length byte string (RFC 8949 §3.2.3 forbids nested
+    /// indefinite chunks).
+    private mutating func readIndefiniteByteStringChunks() throws -> [Data] {
+        var chunks: [Data] = []
+        while true {
+            if peekBreak() {
+                try consumeBreak()
+                return chunks
+            }
+            let head = try readHead()
+            guard head.majorType == .byteString else {
+                throw CBORError.malformed(
+                    "indefinite-length byte string contains chunk of major type \(head.majorType.rawValue)"
+                )
+            }
+            if head.isIndefinite {
+                throw CBORError.malformed("nested indefinite-length byte string chunk")
+            }
+            let count = try lengthInt(head.argument)
+            chunks.append(try readBytes(count))
+        }
+    }
+
+    private mutating func readIndefiniteTextStringChunks() throws -> [String] {
+        var chunks: [String] = []
+        while true {
+            if peekBreak() {
+                try consumeBreak()
+                return chunks
+            }
+            let head = try readHead()
+            guard head.majorType == .textString else {
+                throw CBORError.malformed(
+                    "indefinite-length text string contains chunk of major type \(head.majorType.rawValue)"
+                )
+            }
+            if head.isIndefinite {
+                throw CBORError.malformed("nested indefinite-length text string chunk")
+            }
+            let count = try lengthInt(head.argument)
+            let payload = try readBytes(count)
+            guard let s = String(data: payload, encoding: .utf8) else {
+                throw CBORError.invalidUTF8
+            }
+            chunks.append(s)
+        }
+    }
+
+    private mutating func readIndefiniteArrayItems() throws -> [CBOR] {
+        var items: [CBOR] = []
+        while true {
+            if peekBreak() {
+                try consumeBreak()
+                return items
+            }
+            items.append(try decode())
+        }
+    }
+
+    private mutating func readIndefiniteMapEntries() throws -> OrderedDictionary<CBOR, CBOR> {
+        var dict = OrderedDictionary<CBOR, CBOR>()
+        while true {
+            if peekBreak() {
+                try consumeBreak()
+                return dict
+            }
+            let key = try decode()
+            // A break here would mean the map ended after a key but before
+            // its value — illegal per RFC 8949 §3.2.2.
+            if peekBreak() {
+                throw CBORError.malformed("indefinite-length map ended between key and value")
+            }
+            let value = try decode()
+            dict.updateValue(value, forKey: key)
+        }
     }
 
     // MARK: - Helpers

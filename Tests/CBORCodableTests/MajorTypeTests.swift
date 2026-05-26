@@ -314,9 +314,8 @@ struct ReaderEdgeTests {
         #expect(throws: CBORError.self) { try decodeValue([0xFF]) }
     }
 
-    @Test func indefiniteLengthDeferred() {
-        // Step 1 doesn't handle indefinite-length items yet.
-        // 0x5F = indefinite byte-string head.
+    @Test func truncatedIndefiniteHead() {
+        // 0x5F = indefinite byte-string head with no chunks and no break.
         #expect(throws: CBORError.self) { try decodeValue([0x5F]) }
     }
 }

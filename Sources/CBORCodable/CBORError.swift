@@ -19,4 +19,8 @@ public enum CBORError: Error, Sendable {
     case lengthOverflow(argument: UInt64)
     /// Feature exists in CBOR but is not yet implemented in this build step.
     case unsupported(String)
+    /// Catch-all for inputs that are syntactically wrong but don't fall into
+    /// the more specific cases above (e.g. an indefinite-length chunk of the
+    /// wrong major type, or a map that ends mid-pair).
+    case malformed(String)
 }
