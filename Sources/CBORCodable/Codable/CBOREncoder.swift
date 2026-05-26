@@ -10,11 +10,25 @@ import Foundation
 public final class CBOREncoder {
     public var userInfo: [CodingUserInfoKey: Any] = [:]
 
+    /// Apply RFC 8949 §4.2 deterministic encoding: sort map keys by
+    /// bytewise lexicographic order of their encoded form, replace
+    /// indefinite-length items with their definite-length equivalents,
+    /// use the shortest exact float representation, and canonicalize
+    /// NaN to `0xf97e00`.
+    ///
+    /// Off by default — turn it on when the bytes need to be reproducible
+    /// across encoders (e.g. for hashing, signing, or cross-implementation
+    /// agreement).
+    public var deterministic: Bool = false
+
     public init() {}
 
     /// Encode `value` to CBOR-encoded bytes.
     public func encode<T: Encodable>(_ value: T) throws -> Data {
-        let cbor = try encodeToCBOR(value, codingPath: [], userInfo: userInfo)
+        var cbor = try encodeToCBOR(value, codingPath: [], userInfo: userInfo)
+        if deterministic {
+            cbor = try DeterministicEncoding.canonicalize(cbor)
+        }
         var writer = CBORWriter()
         try writer.encode(cbor)
         return writer.data
@@ -24,6 +38,10 @@ public final class CBOREncoder {
     /// Useful for callers that want to inspect or transform the structure
     /// before writing — and for tests.
     public func encodeToValue<T: Encodable>(_ value: T) throws -> CBOR {
-        try encodeToCBOR(value, codingPath: [], userInfo: userInfo)
+        var cbor = try encodeToCBOR(value, codingPath: [], userInfo: userInfo)
+        if deterministic {
+            cbor = try DeterministicEncoding.canonicalize(cbor)
+        }
+        return cbor
     }
 }
