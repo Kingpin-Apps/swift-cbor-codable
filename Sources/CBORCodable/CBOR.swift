@@ -30,6 +30,36 @@ public enum CBOR: Hashable, Sendable {
     case indefiniteMap(OrderedDictionary<CBOR, CBOR>)
 }
 
+// MARK: - Codable passthrough
+
+extension CBOR: Codable {
+    /// `CBOR` values pass through this library's encoder/decoder unchanged,
+    /// preserving structure that the generic Codable machinery couldn't
+    /// represent (tags, indefinite-length items, raw simple values).
+    /// Encoding via another `Encoder` is intentionally rejected.
+    public init(from decoder: Decoder) throws {
+        if let cborDecoder = decoder as? _CBORDecoder {
+            self = cborDecoder.value
+            return
+        }
+        throw DecodingError.dataCorrupted(.init(
+            codingPath: decoder.codingPath,
+            debugDescription: "CBOR values can only be decoded via CBORDecoder."
+        ))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if let cborEncoder = encoder as? _CBOREncoder {
+            cborEncoder.publish(self)
+            return
+        }
+        throw EncodingError.invalidValue(self, .init(
+            codingPath: encoder.codingPath,
+            debugDescription: "CBOR values can only be encoded via CBOREncoder."
+        ))
+    }
+}
+
 extension CBOR {
     /// Produce the smallest CBOR float case that exactly represents `value`.
     ///
