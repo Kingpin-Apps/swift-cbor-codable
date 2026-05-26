@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import OrderedCollections
 @testable import CBORCodable
 
 @Suite("Major type 0: unsigned integers")
@@ -203,7 +204,7 @@ struct MapTests {
             Issue.record("expected map, got \(result)")
             return
         }
-        #expect(out.keys == [.textString("z"), .textString("a"), .textString("m")])
+        #expect(Array(out.keys) == [.textString("z"), .textString("a"), .textString("m")])
     }
 
     @Test("Map count boundary encoding", arguments: [0, 23, 24, 255, 256])
@@ -266,22 +267,35 @@ struct SimpleValueTests {
         #expect(bytes == [MajorType.simpleOrFloat.prefix | 24, v])
     }
 
-    @Test("Reserved simple values 20..31 are rejected on encode",
-          arguments: Array(UInt8(20)...UInt8(31)))
-    func reservedSimpleValuesRejected(_ v: UInt8) {
+    @Test("Simple values 20..23 are rejected on encode (alias the typed cases)",
+          arguments: Array(UInt8(20)...UInt8(23)))
+    func aliasedSimpleValuesRejected(_ v: UInt8) {
         #expect(throws: CBORError.self) {
             _ = try encodeBytes(.simple(v))
         }
     }
 
-    @Test func rejectsExtendedSimpleValueBelow32() {
-        // 0xF8 = simpleOrFloat with info 24 (extended form). RFC 8949 §3.3
-        // forbids 1-byte-encoded simple values < 32 (they collide with the
-        // inline form).
-        #expect(throws: CBORError.self) {
-            _ = try decodeValue([0xF8, 0x00])
-            _ = try decodeValue([0xF8, 31])
-        }
+    @Test("Reserved simple values 24..31 round-trip via the 1-byte form",
+          arguments: Array(UInt8(24)...UInt8(31)))
+    func reservedSimpleValuesRoundTrip(_ v: UInt8) throws {
+        // RFC 8949 §3.3 reserves these but does not forbid encoding;
+        // cbor/test-vectors lists simple(24) as a published vector.
+        #expect(try roundTrip(.simple(v)) == .simple(v))
+        let bytes = try encodeBytes(.simple(v))
+        #expect(bytes == [MajorType.simpleOrFloat.prefix | 24, v])
+    }
+
+    @Test func extendedFormOfInlineValuesNormalizes() throws {
+        // 0xF8 0x14 = 1-byte form of simple(20), which is "false" inline.
+        // A decoder should accept the extended form and normalize back to
+        // the typed case.
+        #expect(try decodeValue([0xF8, 0x14]) == .boolean(false))
+        #expect(try decodeValue([0xF8, 0x15]) == .boolean(true))
+        #expect(try decodeValue([0xF8, 0x16]) == .null)
+        #expect(try decodeValue([0xF8, 0x17]) == .undefined)
+        // simple values 0..19 also accepted in extended form.
+        #expect(try decodeValue([0xF8, 0x00]) == .simple(0))
+        #expect(try decodeValue([0xF8, 0x13]) == .simple(19))
     }
 }
 

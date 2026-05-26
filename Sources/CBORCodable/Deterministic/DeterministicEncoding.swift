@@ -1,4 +1,5 @@
 import Foundation
+import OrderedCollections
 
 /// Implementation of RFC 8949 §4.2 "Deterministic Encoding".
 ///

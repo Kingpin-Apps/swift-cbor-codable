@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import OrderedCollections
 @testable import CBORCodable
 
 @Suite("Indefinite-length byte strings")
@@ -178,7 +179,7 @@ struct IndefiniteMapTests {
             Issue.record("expected indefinite map")
             return
         }
-        #expect(out.keys == [.textString("z"), .textString("a"), .textString("m")])
+        #expect(Array(out.keys) == [.textString("z"), .textString("a"), .textString("m")])
     }
 
     @Test func rejectsBreakBetweenKeyAndValue() {

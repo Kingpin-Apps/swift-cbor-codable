@@ -1,4 +1,5 @@
 import Foundation
+import OrderedCollections
 
 /// A CBOR data item as defined by RFC 8949.
 ///

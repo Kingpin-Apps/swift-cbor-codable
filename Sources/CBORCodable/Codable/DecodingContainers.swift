@@ -1,4 +1,5 @@
 import Foundation
+import OrderedCollections
 
 // MARK: - Single value
 
@@ -164,7 +165,7 @@ final class CBORKeyedDecodingContainer<Key: CodingKey>: KeyedDecodingContainerPr
     }
 
     func contains(_ key: Key) -> Bool {
-        dict.contains(key: codingKeyToCBOR(key))
+        dict[codingKeyToCBOR(key)] != nil
     }
 
     private func value(for key: Key) throws -> CBOR {

@@ -19,13 +19,22 @@ let package = Package(
             targets: ["CBORCodable"]
         ),
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
+    ],
     targets: [
         .target(
-            name: "CBORCodable"
+            name: "CBORCodable",
+            dependencies: [
+                .product(name: "OrderedCollections", package: "swift-collections"),
+            ]
         ),
         .testTarget(
             name: "CBORCodableTests",
-            dependencies: ["CBORCodable"]
+            dependencies: ["CBORCodable"],
+            resources: [
+                .copy("Resources/cbor-test-vectors"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]

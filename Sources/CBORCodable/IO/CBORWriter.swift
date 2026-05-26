@@ -127,16 +127,20 @@ public struct CBORWriter {
             append(MajorType.simpleOrFloat.prefix | 23)
 
         case .simple(let value):
-            // 20..23 are reserved for the typed cases above.
-            // 24..31 are reserved by RFC 8949.
+            // 20..23 alias .boolean(false)/.boolean(true)/.null/.undefined
+            // — refuse them so the typed cases stay the single source of
+            // truth on the wire. RFC 8949 reserves 24..31 but does not
+            // forbid their encoding, and the cbor/test-vectors suite
+            // expects them to round-trip, so they share the 1-byte form
+            // with the 32..255 range.
             switch value {
             case 0...19:
                 append(MajorType.simpleOrFloat.prefix | value)
-            case 32...:
+            case 20...23:
+                throw CBORError.invalidSimpleValue(value)
+            default:
                 append(MajorType.simpleOrFloat.prefix | 24)
                 append(value)
-            default:
-                throw CBORError.invalidSimpleValue(value)
             }
 
         case .half(let bits):

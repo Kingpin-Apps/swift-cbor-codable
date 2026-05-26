@@ -1,4 +1,5 @@
 import Foundation
+import OrderedCollections
 
 /// Low-level byte reader for CBOR.
 ///
@@ -280,10 +281,19 @@ public struct CBORReader {
         case 0...19:
             return .simple(head.info)
         case 24:
+            // RFC 8949 §3.3 says encoders SHOULD NOT produce the 1-byte
+            // form for simple values 0..31, but decoders should still
+            // accept what they find. Normalize 20..23 back to the typed
+            // cases so callers don't have to worry about which form was
+            // on the wire.
             let v = UInt8(head.argument)
-            // Values < 32 in the 1-byte form are not well-formed (RFC 8949 §3.3).
-            guard v >= 32 else { throw CBORError.invalidSimpleValue(v) }
-            return .simple(v)
+            switch v {
+            case 20: return .boolean(false)
+            case 21: return .boolean(true)
+            case 22: return .null
+            case 23: return .undefined
+            default: return .simple(v)
+            }
         case 25:
             return .half(UInt16(head.argument))
         case 26:

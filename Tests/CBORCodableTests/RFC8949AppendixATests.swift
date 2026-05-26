@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import OrderedCollections
 @testable import CBORCodable
 
 /// The full RFC 8949 Appendix A canonical-encoding table.

@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import OrderedCollections
 @testable import CBORCodable
 
 private func canonicalize(_ value: CBOR) throws -> CBOR {
@@ -112,7 +113,7 @@ struct DeterministicMapSortTests {
             Issue.record("expected map")
             return
         }
-        #expect(sorted.keys == [.unsignedInt(1), .unsignedInt(10), .unsignedInt(100)])
+        #expect(Array(sorted.keys) == [.unsignedInt(1), .unsignedInt(10), .unsignedInt(100)])
     }
 
     @Test func unsignedKeysSortBeforeNegativeKeys() throws {
@@ -124,7 +125,7 @@ struct DeterministicMapSortTests {
             Issue.record("expected map")
             return
         }
-        #expect(sorted.keys == [.unsignedInt(0), .negativeInt(0)])
+        #expect(Array(sorted.keys) == [.unsignedInt(0), .negativeInt(0)])
     }
 
     @Test func mixedTypeKeysSortByEncodedBytes() throws {
@@ -140,7 +141,7 @@ struct DeterministicMapSortTests {
             Issue.record("expected map")
             return
         }
-        #expect(sorted.keys == [
+        #expect(Array(sorted.keys) == [
             .unsignedInt(1),       // 0x01
             .unsignedInt(1000),    // 0x1903e8
             .textString(""),       // 0x60
@@ -161,7 +162,7 @@ struct DeterministicMapSortTests {
             Issue.record("expected nested map")
             return
         }
-        #expect(nested.keys == [.textString("a"), .textString("b")])
+        #expect(Array(nested.keys) == [.textString("a"), .textString("b")])
     }
 
     @Test func sameLengthKeysSortBytewise() throws {
@@ -173,7 +174,7 @@ struct DeterministicMapSortTests {
             Issue.record("expected map")
             return
         }
-        #expect(sorted.keys == [.textString("a"), .textString("b"), .textString("c")])
+        #expect(Array(sorted.keys) == [.textString("a"), .textString("b"), .textString("c")])
     }
 }
 
