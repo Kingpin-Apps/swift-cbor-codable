@@ -1,5 +1,5 @@
 import Testing
-@testable import swift_cbor_codable
+@testable import CBORCodable
 
 @Test func example() async throws {
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.

@@ -4,23 +4,28 @@
 import PackageDescription
 
 let package = Package(
-    name: "swift-cbor-codable",
+    name: "CBORCodable",
+    platforms: [
+        .iOS(.v16),
+        .macOS(.v14),
+        .watchOS(.v8),
+        .tvOS(.v15),
+        .visionOS(.v1),
+        .macCatalyst(.v15),
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "swift-cbor-codable",
-            targets: ["swift-cbor-codable"]
+            name: "CBORCodable",
+            targets: ["CBORCodable"]
         ),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "swift-cbor-codable"
+            name: "CBORCodable"
         ),
         .testTarget(
-            name: "swift-cbor-codableTests",
-            dependencies: ["swift-cbor-codable"]
+            name: "CBORCodableTests",
+            dependencies: ["CBORCodable"]
         ),
     ],
     swiftLanguageModes: [.v6]
