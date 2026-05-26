@@ -5,7 +5,7 @@ import Foundation
 /// Owns a growing `Data` buffer and exposes helpers for the head + payload
 /// pattern that all CBOR items follow. Higher layers (the value-level
 /// encoder, the `Codable` encoder) build on this.
-public struct CBORWriter {
+public struct CBORWriter: Sendable {
     public private(set) var data: Data
 
     public init(capacity: Int = 64) {

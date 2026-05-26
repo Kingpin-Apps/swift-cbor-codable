@@ -6,13 +6,38 @@ import OrderedCollections
 /// Wraps the input in a contiguous `[UInt8]` so that slice-base offsets
 /// can't surprise callers, and exposes head + payload primitives that
 /// higher layers compose into full value decoding.
-public struct CBORReader {
+public struct CBORReader: Sendable {
     @usableFromInline let bytes: [UInt8]
     @usableFromInline var index: Int
 
-    public init(_ data: Data) {
+    /// Maximum nesting depth accepted while decoding. Prevents a stack
+    /// overflow on adversarial input — every level of array, map,
+    /// indefinite-length container, or tag wrapping counts as one.
+    public let maxDepth: Int
+
+    /// When true, the reader enforces the head-level subset of RFC 8949
+    /// §4.2 deterministic encoding: every length / tag / argument must
+    /// be in shortest form, and indefinite-length items are rejected.
+    /// Float and map-key checks happen at the value layer via
+    /// `DeterministicValidation` after the full item is decoded.
+    public let strict: Bool
+
+    /// Current nesting depth. Bumped by `decode()` on entry and dropped
+    /// in its `defer`.
+    @usableFromInline var depth: Int = 0
+
+    /// The default depth cap. 128 is more than any realistic Codable
+    /// graph needs (HTTP-style payloads are usually < 20 deep) and stays
+    /// well below the call-stack budget Swift task runtimes give us on
+    /// every supported platform — including the constrained stacks
+    /// `swift-testing` allocates per test case.
+    public static let defaultMaxDepth: Int = 128
+
+    public init(_ data: Data, maxDepth: Int = defaultMaxDepth, strict: Bool = false) {
         self.bytes = Array(data)
         self.index = 0
+        self.maxDepth = maxDepth
+        self.strict = strict
     }
 
     public var isAtEnd: Bool { index >= bytes.count }
@@ -66,6 +91,10 @@ public struct CBORReader {
     }
 
     /// Read a single CBOR head. Advances past any extended argument bytes.
+    ///
+    /// In strict mode (`strict == true`), enforces RFC 8949 §4.1 preferred
+    /// serialization at the head level: every argument must use the
+    /// shortest legal encoding, and indefinite-length items are rejected.
     public mutating func readHead() throws -> Head {
         let byte = try readByte()
         let major = MajorType(rawValue: byte >> 5)!  // 3 bits → 0..7, all defined
@@ -74,16 +103,39 @@ public struct CBORReader {
         case 0...23:
             return Head(majorType: major, info: info, argument: UInt64(info), isIndefinite: false)
         case 24:
-            return Head(majorType: major, info: info, argument: UInt64(try readByte()), isIndefinite: false)
+            let arg = UInt64(try readByte())
+            if strict && arg < 24 {
+                throw CBORError.malformed("non-shortest head: 1-byte argument \(arg) (must be inline)")
+            }
+            return Head(majorType: major, info: info, argument: arg, isIndefinite: false)
         case 25:
-            return Head(majorType: major, info: info, argument: UInt64(try readUInt16()), isIndefinite: false)
+            let arg = UInt64(try readUInt16())
+            if strict && arg <= UInt64(UInt8.max) {
+                throw CBORError.malformed("non-shortest head: 2-byte argument \(arg) (fits in 1 byte)")
+            }
+            return Head(majorType: major, info: info, argument: arg, isIndefinite: false)
         case 26:
-            return Head(majorType: major, info: info, argument: UInt64(try readUInt32()), isIndefinite: false)
+            let arg = UInt64(try readUInt32())
+            if strict && arg <= UInt64(UInt16.max) {
+                throw CBORError.malformed("non-shortest head: 4-byte argument \(arg) (fits in 2 bytes)")
+            }
+            return Head(majorType: major, info: info, argument: arg, isIndefinite: false)
         case 27:
-            return Head(majorType: major, info: info, argument: try readUInt64(), isIndefinite: false)
+            let arg = try readUInt64()
+            if strict && arg <= UInt64(UInt32.max) {
+                throw CBORError.malformed("non-shortest head: 8-byte argument \(arg) (fits in 4 bytes)")
+            }
+            return Head(majorType: major, info: info, argument: arg, isIndefinite: false)
         case 28, 29, 30:
             throw CBORError.reservedAdditionalInfo(info)
         case 31:
+            if strict && major != .simpleOrFloat {
+                // Indefinite-length container heads. The break stop-code
+                // (major 7 + info 31) is allowed at this layer; callers
+                // that see it without an enclosing indefinite container
+                // surface it as `unexpectedBreak` later.
+                throw CBORError.malformed("indefinite-length items forbidden in strict mode")
+            }
             return Head(majorType: major, info: info, argument: 0, isIndefinite: true)
         default:
             // info is 5 bits, so 0..31 covers everything.
@@ -94,6 +146,12 @@ public struct CBORReader {
     // MARK: - Value decoding
 
     public mutating func decode() throws -> CBOR {
+        if depth >= maxDepth {
+            throw CBORError.depthExceeded(maxDepth: maxDepth)
+        }
+        depth &+= 1
+        defer { depth &-= 1 }
+
         let head = try readHead()
         switch head.majorType {
 
@@ -159,10 +217,15 @@ public struct CBORReader {
     }
 
     /// Decode a single top-level CBOR item and require the input to be
-    /// fully consumed.
+    /// fully consumed. When the reader is in strict mode, also runs the
+    /// value-layer half of RFC 8949 §4.2 — float shortness, canonical
+    /// NaN, and map-key ordering — that can't be checked head-by-head.
     public mutating func decodeTopLevel() throws -> CBOR {
         let value = try decode()
         guard isAtEnd else { throw CBORError.trailingBytes(remaining: remaining) }
+        if strict {
+            try DeterministicValidation.validate(value)
+        }
         return value
     }
 

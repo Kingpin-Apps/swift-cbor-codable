@@ -15,7 +15,7 @@ import Foundation
 ///     @Tagged<String, MyAppTag> var marker: String
 /// }
 /// ```
-public protocol CBORTagNumber {
+public protocol CBORTagNumber: Sendable {
     static var number: UInt64 { get }
 }
 
@@ -83,7 +83,7 @@ public struct Tagged<Value: Codable, Tag: CBORTagNumber>: Codable {
 
 extension Tagged: Equatable where Value: Equatable {}
 extension Tagged: Hashable where Value: Hashable {}
-extension Tagged: Sendable where Value: Sendable {}
+extension Tagged: Sendable where Value: Sendable, Tag: Sendable {}
 
 // MARK: - Standard tag-number types
 

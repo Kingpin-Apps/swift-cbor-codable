@@ -23,4 +23,7 @@ public enum CBORError: Error, Sendable {
     /// the more specific cases above (e.g. an indefinite-length chunk of the
     /// wrong major type, or a map that ends mid-pair).
     case malformed(String)
+    /// Decoding nested deeper than the configured maximum. Defends against
+    /// adversarial input that would otherwise overflow the call stack.
+    case depthExceeded(maxDepth: Int)
 }
