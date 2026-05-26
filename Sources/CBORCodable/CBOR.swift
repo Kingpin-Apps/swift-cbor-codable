@@ -29,3 +29,29 @@ public enum CBOR: Hashable, Sendable {
     case indefiniteArray([CBOR])
     case indefiniteMap(OrderedDictionary<CBOR, CBOR>)
 }
+
+extension CBOR {
+    /// Produce the smallest CBOR float case that exactly represents `value`.
+    ///
+    /// Tries half first, then single, falling back to `.double(value)`.
+    /// Non-NaN values always round-trip exactly; NaNs with non-zero low
+    /// mantissa bits fall back to whichever precision preserves them.
+    public static func shortestFloat(_ value: Double) -> CBOR {
+        let asSingle = Float(value)
+        guard Double(asSingle).bitPattern == value.bitPattern else {
+            return .double(value)
+        }
+        if let halfBits = Float16Bits.fromFloatExact(asSingle) {
+            return .half(halfBits)
+        }
+        return .float(asSingle)
+    }
+
+    /// Produce the smallest CBOR float case that exactly represents `value`.
+    public static func shortestFloat(_ value: Float) -> CBOR {
+        if let halfBits = Float16Bits.fromFloatExact(value) {
+            return .half(halfBits)
+        }
+        return .float(value)
+    }
+}

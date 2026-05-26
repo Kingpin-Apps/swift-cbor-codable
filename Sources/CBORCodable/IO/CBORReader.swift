@@ -193,8 +193,12 @@ public struct CBORReader {
             // Values < 32 in the 1-byte form are not well-formed (RFC 8949 §3.3).
             guard v >= 32 else { throw CBORError.invalidSimpleValue(v) }
             return .simple(v)
-        case 25, 26, 27:
-            throw CBORError.unsupported("floating-point decoding lands in step 2")
+        case 25:
+            return .half(UInt16(head.argument))
+        case 26:
+            return .float(Float(bitPattern: UInt32(head.argument)))
+        case 27:
+            return .double(Double(bitPattern: head.argument))
         case 31:
             throw CBORError.unexpectedBreak
         case 28, 29, 30:

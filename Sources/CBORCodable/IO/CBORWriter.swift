@@ -139,8 +139,17 @@ public struct CBORWriter {
                 throw CBORError.invalidSimpleValue(value)
             }
 
-        case .half, .float, .double:
-            throw CBORError.unsupported("floating-point encoding lands in step 2")
+        case .half(let bits):
+            append(MajorType.simpleOrFloat.prefix | 25)
+            appendBE(bits)
+
+        case .float(let value):
+            append(MajorType.simpleOrFloat.prefix | 26)
+            appendBE(value.bitPattern)
+
+        case .double(let value):
+            append(MajorType.simpleOrFloat.prefix | 27)
+            appendBE(value.bitPattern)
 
         case .indefiniteByteString, .indefiniteTextString,
              .indefiniteArray, .indefiniteMap:
