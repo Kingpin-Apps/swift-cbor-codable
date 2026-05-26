@@ -32,9 +32,12 @@ import OrderedCollections
 @dynamicMemberLookup
 public enum AnyValue: Sendable {
 
-    public enum Error: Swift.Error {
+    public enum Error: Swift.Error, Sendable {
         case unsupportedType
-        case unsupportedValue(Any)
+        /// The wrapped value's type couldn't be projected into any
+        /// `AnyValue` case. Stored as a description string rather than
+        /// raw `Any` so the error type can stay `Sendable`.
+        case unsupportedValue(typeDescription: String)
     }
 
     public typealias AnyArray = [AnyValue]
@@ -390,7 +393,7 @@ extension AnyValue {
                 AnyDictionary(uniqueKeysWithValues: try v.map { (try wrapped($0), try wrapped($1)) })
             )
         default:
-            throw Error.unsupportedValue(value)
+            throw Error.unsupportedValue(typeDescription: String(describing: type(of: value)))
         }
     }
 
@@ -545,18 +548,5 @@ extension AnyValue: Encodable {
     }
 }
 
-// Minimal coding key used when AnyValue decodes a generic keyed container.
-private struct AnyValueCodingKey: CodingKey {
-    var stringValue: String
-    var intValue: Int?
-
-    init(stringValue: String) {
-        self.stringValue = stringValue
-        self.intValue = nil
-    }
-
-    init(intValue: Int) {
-        self.stringValue = String(intValue)
-        self.intValue = intValue
-    }
-}
+// `AnyValueCodingKey` is defined in `AnyValueEncoder.swift` and shared
+// across this file's keyed-container decode path.
