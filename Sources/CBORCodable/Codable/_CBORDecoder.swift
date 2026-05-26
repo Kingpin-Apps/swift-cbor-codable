@@ -224,10 +224,72 @@ func decodeFromCBOR<T: Decodable>(
     if type == CBOR.self, let cbor = value as? T {
         return cbor
     }
+    // Inverse of the Foundation-type intercepts in `encodeToCBOR`. Each
+    // accepts both the tagged wire form and a bare untagged value, so
+    // input from less strict encoders still decodes.
     if type == Data.self {
-        let data = try decodeData(value, codingPath: codingPath)
-        return data as! T
+        return try decodeData(value, codingPath: codingPath) as! T
+    }
+    if type == Date.self {
+        return try decodeDate(value, codingPath: codingPath) as! T
+    }
+    if type == URL.self {
+        return try decodeURL(value, codingPath: codingPath) as! T
+    }
+    if type == UUID.self {
+        return try decodeUUID(value, codingPath: codingPath) as! T
     }
     let decoder = _CBORDecoder(value: value, codingPath: codingPath, userInfo: userInfo)
     return try T(from: decoder)
+}
+
+// MARK: - Foundation type decoders
+
+func decodeDate(_ value: CBOR, codingPath: [CodingKey]) throws -> Date {
+    // Tag 1 wraps the number; we strip it via `untagged` and accept any
+    // numeric form (half / single / double / unsigned / negative integer).
+    let seconds = try decodeDouble(value, codingPath: codingPath)
+    return Date(timeIntervalSince1970: seconds)
+}
+
+func decodeURL(_ value: CBOR, codingPath: [CodingKey]) throws -> URL {
+    let string = try decodeString(value, codingPath: codingPath)
+    guard let url = URL(string: string) else {
+        throw DecodingError.dataCorrupted(.init(
+            codingPath: codingPath,
+            debugDescription: "Value is not a valid URL: \(string)"
+        ))
+    }
+    return url
+}
+
+func decodeUUID(_ value: CBOR, codingPath: [CodingKey]) throws -> UUID {
+    switch value.untagged {
+    case .byteString(let data):
+        guard data.count == 16 else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: codingPath,
+                debugDescription: "UUID byte string must be 16 bytes, got \(data.count)."
+            ))
+        }
+        return data.withUnsafeBytes { ptr -> UUID in
+            let raw = ptr.bindMemory(to: uuid_t.self).baseAddress!.pointee
+            return UUID(uuid: raw)
+        }
+    case .textString(let s):
+        // Lenient: also accept the canonical RFC 4122 string form.
+        guard let uuid = UUID(uuidString: s) else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: codingPath,
+                debugDescription: "Value is not a valid UUID string: \(s)"
+            ))
+        }
+        return uuid
+    case let other:
+        throw DecodingError.typeMismatch(
+            UUID.self,
+            .init(codingPath: codingPath,
+                  debugDescription: "Expected a UUID byte string or string, got \(describe(other)).")
+        )
+    }
 }

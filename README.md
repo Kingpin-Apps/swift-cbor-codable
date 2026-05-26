@@ -9,11 +9,21 @@ deterministic-encoding mode.
 - Drop-in `CBOREncoder` / `CBORDecoder` that mirror `JSONEncoder` / `JSONDecoder`.
 - `@Tagged<Value, Tag>` property wrapper for attaching CBOR tag numbers to
   struct fields.
+- Foundation-type bridges: `Date` → tag 1, `URL` → tag 32, `UUID` → tag
+  37, `Data` → byte string — round-trip without ceremony.
 - Deterministic encoding (§4.2) — sorted map keys, definite-length items,
   shortest-form floats, canonical NaN — for hashing, signing, or
   cross-implementation byte stability.
-- No third-party runtime dependencies. Pure Swift, manual half-precision
-  conversion so it works on every platform Swift supports.
+- Strict decoding (`requireDeterministic = true`) — rejects any input
+  that isn't §4.2-canonical, useful when verifying signed payloads.
+- Decoder depth limit (default 128) protects against adversarial input
+  that would otherwise overflow the call stack.
+- `CBOR` literal conformances and `CBOR.diagnostic` (RFC 8949 §8) for
+  ergonomic value construction and debugging.
+- Manual half-precision conversion so the package builds on every
+  platform Swift supports — including Linux (verified in CI).
+- One runtime dependency: `apple/swift-collections` for the ordered
+  dictionary backing CBOR maps.
 
 ## Installation
 

@@ -59,11 +59,29 @@ func encodeToCBOR<T: Encodable>(
     codingPath: [CodingKey] = [],
     userInfo: [CodingUserInfoKey: Any] = [:]
 ) throws -> CBOR {
-    // Data's auto-synthesized Codable conformance encodes as an array of
-    // bytes; we want a CBOR byte string instead. Intercept before letting
-    // Swift's machinery run.
+    // Foundation types have well-defined CBOR representations that don't
+    // match what Swift's auto-synthesized Codable would produce. Intercept
+    // them before the generic machinery runs.
+    //
+    //   Data → byte string  (Codable default would emit [UInt8])
+    //   Date → tag 1, epoch double  (Codable default emits a Double of
+    //                                timeIntervalSinceReferenceDate)
+    //   URL  → tag 32, text string  (Codable default emits a string but
+    //                                with no semantic tag)
+    //   UUID → tag 37, 16-byte string  (Codable default emits a UUID
+    //                                   string in canonical form)
     if let data = value as? Data {
         return .byteString(data)
+    }
+    if let date = value as? Date {
+        return .tagged(CBORTag.epochDateTime.rawValue,
+                       .double(date.timeIntervalSince1970))
+    }
+    if let url = value as? URL {
+        return .tagged(CBORTag.uri.rawValue, .textString(url.absoluteString))
+    }
+    if let uuid = value as? UUID {
+        return .tagged(CBORTag.uuid.rawValue, .byteString(uuidBytes(uuid)))
     }
     var result: CBOR? = nil
     let encoder = _CBOREncoder(codingPath: codingPath, userInfo: userInfo) { v in
@@ -77,4 +95,11 @@ func encodeToCBOR<T: Encodable>(
         ))
     }
     return cbor
+}
+
+/// Extract the 16 raw bytes of a `UUID` as a `Data` value. The byte order
+/// matches RFC 4122's wire form, which is what tag 37 expects.
+@inlinable
+func uuidBytes(_ uuid: UUID) -> Data {
+    withUnsafeBytes(of: uuid.uuid) { Data($0) }
 }
