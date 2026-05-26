@@ -7,7 +7,7 @@ let package = Package(
     name: "CBORCodable",
     platforms: [
         .iOS(.v16),
-        .macOS(.v14),
+        .macOS(.v13),
         .watchOS(.v8),
         .tvOS(.v15),
         .visionOS(.v1),

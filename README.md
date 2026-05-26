@@ -197,7 +197,7 @@ low-level CBOR tooling.
 ## Requirements
 
 - Swift 6.0+
-- iOS 16+, macOS 14+, watchOS 8+, tvOS 15+, visionOS 1+, macCatalyst 15+
+- iOS 16+, macOS 13+, watchOS 8+, tvOS 15+, visionOS 1+, macCatalyst 15+
 - Linux (any Swift 6.0+ toolchain)
 
 ## License
