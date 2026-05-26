@@ -75,6 +75,10 @@ let back = try CBORDecoder().decode(Person.self, from: data)
 
 - <doc:ValueLiterals>
 
+### Custom Codable conformance
+
+- <doc:CustomCodable>
+
 ### Diagnostic notation
 
 - ``CBOR/diagnostic``

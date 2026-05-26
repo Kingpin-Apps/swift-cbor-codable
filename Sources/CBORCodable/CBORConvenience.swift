@@ -108,6 +108,65 @@ extension CBOR {
         default: return false
         }
     }
+
+    /// The numeric value as `Int` when this is an integer case and the
+    /// value fits in `Int` on the current platform, otherwise `nil`.
+    /// Tag wrappers are stripped — a `.tagged(_, .unsignedInt(5))` reads
+    /// as `5`.
+    public var intValue: Int? {
+        switch self.untagged {
+        case .unsignedInt(let n):
+            return Int(exactly: n)
+        case .negativeInt(let n):
+            guard n <= UInt64(Int64.max) else { return nil }
+            return Int(exactly: -1 - Int64(n))
+        default:
+            return nil
+        }
+    }
+
+    /// The numeric value as `Int64` when this is an integer case and the
+    /// value fits in `Int64`, otherwise `nil`. Tag wrappers stripped.
+    public var int64Value: Int64? {
+        switch self.untagged {
+        case .unsignedInt(let n):
+            return Int64(exactly: n)
+        case .negativeInt(let n):
+            guard n <= UInt64(Int64.max) else { return nil }
+            return -1 - Int64(n)
+        default:
+            return nil
+        }
+    }
+}
+
+// MARK: - Subscript convenience
+
+extension CBOR {
+    /// Index into a `.array` or `.indefiniteArray`. Returns the nth
+    /// element if this is an array case and `index` is in bounds,
+    /// otherwise `nil`. Tag wrappers stripped first.
+    public subscript(index: Int) -> CBOR? {
+        switch self.untagged {
+        case .array(let items), .indefiniteArray(let items):
+            guard items.indices.contains(index) else { return nil }
+            return items[index]
+        default:
+            return nil
+        }
+    }
+
+    /// Look up a key in a `.map` or `.indefiniteMap`. Returns the value
+    /// if this is a map case and the key is present, otherwise `nil`.
+    /// Tag wrappers stripped first.
+    public subscript(key: CBOR) -> CBOR? {
+        switch self.untagged {
+        case .map(let dict), .indefiniteMap(let dict):
+            return dict[key]
+        default:
+            return nil
+        }
+    }
 }
 
 // MARK: - Lossy Swift-native projection

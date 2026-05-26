@@ -112,6 +112,84 @@ CDE / length-first sorting (§4.2.3) and ledger-specific quirks (e.g.
 Cardano's CIP-21 set tag) intentionally stay out of this package — they
 belong in the consumer.
 
+## Custom Codable conformance
+
+The auto-synthesized `Codable` produces string-keyed CBOR maps that
+mirror your stored properties. When you want to take advantage of
+CBOR's compactness or attach semantic tags, override `encode(to:)`
+and `init(from:)` explicitly.
+
+A common pattern: **integer-keyed maps** (~5× smaller than string
+keys on small payloads, idiomatic in COSE / IoT protocols).
+`encodeIfPresent` / `decodeIfPresent` omit absent optionals from the
+wire form rather than emitting `null`:
+
+```swift
+struct SensorReading: Codable {
+    var sensorId: Int
+    var temperature: Double
+    var humidity: Double?
+
+    enum CodingKeys: Int, CodingKey {
+        case sensorId    = 1
+        case temperature = 2
+        case humidity    = 3
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(sensorId, forKey: .sensorId)
+        try c.encode(temperature, forKey: .temperature)
+        try c.encodeIfPresent(humidity, forKey: .humidity)
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.sensorId    = try c.decode(Int.self,    forKey: .sensorId)
+        self.temperature = try c.decode(Double.self, forKey: .temperature)
+        self.humidity    = try c.decodeIfPresent(Double.self, forKey: .humidity)
+    }
+}
+```
+
+For types that semantically *are* a tagged value (bignum, custom date
+format, content-addressed identifier), encode the raw `CBOR` through a
+single-value container:
+
+```swift
+struct PositiveBignum: Codable {
+    var bytes: Data
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        try c.encode(CBOR.tagged(.positiveBignum, .byteString(bytes)))
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        let value = try c.decode(CBOR.self)
+        guard case let .tagged(tag, inner) = value,
+              tag == CBORTag.positiveBignum.rawValue,
+              case let .byteString(b) = inner else {
+            throw DecodingError.dataCorruptedError(
+                in: c,
+                debugDescription: "Expected tag 2 wrapping a byte string."
+            )
+        }
+        self.bytes = b
+    }
+}
+```
+
+For just *attaching* a tag to a field, prefer `@Tagged` — it's a
+property wrapper, less boilerplate. Reach for explicit
+`encode(to:)` / `init(from:)` when you need finer control: multi-tag
+unwrapping, runtime tag-number selection, or validating the wire shape.
+
+More patterns (array encoding, raw-CBOR dictionary literals, when to
+drop down to the `CBOR` value type directly) live in the DocC
+`<doc:CustomCodable>` article.
+
 ## Working with raw CBOR
 
 `CBOR` is the value type that backs everything. You can build, inspect,
