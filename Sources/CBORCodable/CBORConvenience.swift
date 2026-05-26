@@ -221,3 +221,85 @@ extension CBOR {
         return out
     }
 }
+
+// MARK: - Dynamic Any → CBOR projection
+
+extension CBOR {
+    /// Best-effort conversion from a heterogeneous `Any` value into a CBOR
+    /// value. Intended for dynamic-language interop and code that holds
+    /// values in `[AnyHashable: Any]` dictionaries — when you have a known
+    /// static type, prefer the matching ``init(_:)`` overload instead.
+    ///
+    /// Supported types and their projection:
+    ///
+    /// - `CBOR` → returned unchanged.
+    /// - `String` → `.textString`.
+    /// - `Data` → `.byteString`.
+    /// - `Bool` → `.boolean`.
+    /// - Any Swift integer type → `.unsignedInt` / `.negativeInt` via
+    ///   the same signed/unsigned rule as ``init(_:)``.
+    /// - `Float`, `Double` → `.float`, `.double`.
+    /// - `Date` → tag 1 wrapping a double.
+    /// - `URL` → tag 32 wrapping a text string.
+    /// - `UUID` → tag 37 wrapping the 16-byte raw form.
+    /// - `[Any]` → `.array`, recursively converting each element.
+    /// - `[AnyHashable: Any]` → `.map`, recursively converting both keys
+    ///   and values.
+    /// - Anything else → `.null`. (No throw — callers needing strict
+    ///   handling check the result or use a typed `init(_:)`.)
+    public static func fromAny(_ value: Any) -> CBOR {
+        if let v = value as? CBOR { return v }
+        if let v = value as? String { return .textString(v) }
+        if let v = value as? Data { return .byteString(v) }
+        if let v = value as? Bool { return .boolean(v) }
+
+        // Concrete integer types — order matters only because some
+        // numeric literals would match multiple casts when bridged
+        // from NSNumber. Each Swift integer type is checked once.
+        if let v = value as? Int { return CBOR(v) }
+        if let v = value as? Int64 { return CBOR(v) }
+        if let v = value as? Int32 { return CBOR(Int(v)) }
+        if let v = value as? Int16 { return CBOR(Int(v)) }
+        if let v = value as? Int8 { return CBOR(Int(v)) }
+        if let v = value as? UInt { return CBOR(v) }
+        if let v = value as? UInt64 { return CBOR(v) }
+        if let v = value as? UInt32 { return .unsignedInt(UInt64(v)) }
+        if let v = value as? UInt16 { return .unsignedInt(UInt64(v)) }
+        if let v = value as? UInt8 { return .unsignedInt(UInt64(v)) }
+
+        if let v = value as? Float { return .float(v) }
+        if let v = value as? Double { return .double(v) }
+
+        // Foundation types map to their canonical tags (same as the
+        // intercepts in encodeToCBOR for `Codable` types).
+        if let v = value as? Date {
+            return .tagged(CBORTag.epochDateTime.rawValue, .double(v.timeIntervalSince1970))
+        }
+        if let v = value as? URL {
+            return .tagged(CBORTag.uri.rawValue, .textString(v.absoluteString))
+        }
+        if let v = value as? UUID {
+            return .tagged(CBORTag.uuid.rawValue, .byteString(uuidBytes(v)))
+        }
+
+        if let array = value as? [Any] {
+            return .array(array.map { CBOR.fromAny($0) })
+        }
+        if let dict = value as? [AnyHashable: Any] {
+            var ordered = OrderedDictionary<CBOR, CBOR>()
+            for (key, val) in dict {
+                ordered[CBOR.fromAny(key)] = CBOR.fromAny(val)
+            }
+            return .map(ordered)
+        }
+        if let ordered = value as? OrderedDictionary<AnyHashable, Any> {
+            var out = OrderedDictionary<CBOR, CBOR>()
+            for (key, val) in ordered {
+                out[CBOR.fromAny(key)] = CBOR.fromAny(val)
+            }
+            return .map(out)
+        }
+
+        return .null
+    }
+}
