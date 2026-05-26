@@ -23,9 +23,9 @@ struct CBORTagConstantsTests {
         #expect(CBORTag.selfDescribed.rawValue    == 55799)
     }
 
-    @Test func integerLiteralInit() {
-        let tag: CBORTag = 100
-        #expect(tag.rawValue == 100)
+    @Test func customTagConstruction() {
+        #expect(CBORTag(100).rawValue == 100)
+        #expect(CBORTag(rawValue: 100).rawValue == 100)
     }
 }
 

@@ -17,12 +17,6 @@ public struct CBORTag: RawRepresentable, Hashable, Sendable {
     }
 }
 
-extension CBORTag: ExpressibleByIntegerLiteral {
-    public init(integerLiteral value: UInt64) {
-        self.rawValue = value
-    }
-}
-
 extension CBORTag: CustomStringConvertible {
     public var description: String { "CBORTag(\(rawValue))" }
 }
