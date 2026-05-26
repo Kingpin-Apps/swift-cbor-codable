@@ -109,6 +109,55 @@ extension CBOR {
         }
     }
 
+    /// The number of elements (for arrays/maps) or bytes (for strings),
+    /// or `nil` for scalar values. Tag wrappers are stripped first.
+    /// Both definite- and indefinite-length variants are supported —
+    /// indefinite forms return the *combined* count across chunks.
+    public var count: Int? {
+        switch self.untagged {
+        case .array(let a):                       return a.count
+        case .indefiniteArray(let a):             return a.count
+        case .map(let m):                         return m.count
+        case .indefiniteMap(let m):               return m.count
+        case .byteString(let d):                  return d.count
+        case .indefiniteByteString(let chunks):   return chunks.reduce(0) { $0 + $1.count }
+        case .textString(let s):                  return s.count
+        case .indefiniteTextString(let chunks):   return chunks.reduce(0) { $0 + $1.count }
+        default:                                  return nil
+        }
+    }
+
+    /// The payload of an `.indefiniteArray` case, or `nil` otherwise.
+    /// Use ``arrayValue`` for the definite-length form.
+    public var indefiniteArrayValue: [CBOR]? {
+        guard case .indefiniteArray(let items) = self else { return nil }
+        return items
+    }
+
+    /// The payload of an `.indefiniteMap` case, or `nil` otherwise.
+    /// Use ``mapValue`` for the definite-length form.
+    public var indefiniteMapValue: OrderedDictionary<CBOR, CBOR>? {
+        guard case .indefiniteMap(let dict) = self else { return nil }
+        return dict
+    }
+
+    /// The concatenated payload of an `.indefiniteByteString` case, or
+    /// `nil` otherwise. Loses the chunk boundaries — use the case
+    /// directly if you need to preserve them.
+    public var indefiniteByteStringValue: Data? {
+        guard case .indefiniteByteString(let chunks) = self else { return nil }
+        var out = Data()
+        for c in chunks { out.append(c) }
+        return out
+    }
+
+    /// The joined payload of an `.indefiniteTextString` case, or `nil`
+    /// otherwise. Loses the chunk boundaries.
+    public var indefiniteTextStringValue: String? {
+        guard case .indefiniteTextString(let chunks) = self else { return nil }
+        return chunks.joined()
+    }
+
     /// The numeric value as `Int` when this is an integer case and the
     /// value fits in `Int` on the current platform, otherwise `nil`.
     /// Tag wrappers are stripped — a `.tagged(_, .unsignedInt(5))` reads
