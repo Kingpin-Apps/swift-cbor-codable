@@ -1,5 +1,5 @@
 {
-  "originHash" : "2d89619fe50c9f1761b47f46e708934919fdffad65d8d2fb068f7010c2166e4d",
+  "originHash" : "29ff692accfc1642efad9809526bf34891ee37ff456e1666d57cd0057fa7f375",
   "pins" : [
     {
       "identity" : "bigint",
@@ -11,12 +11,30 @@
       }
     },
     {
+      "identity" : "float16",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SusanDoggie/Float16.git",
+      "state" : {
+        "revision" : "936ae66adccf1c91bcaeeb9c0cddde78a13695c3",
+        "version" : "1.1.1"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
       "state" : {
         "revision" : "fea17c02d767f46b23070fdfdacc28a03a39232a",
         "version" : "1.5.1"
+      }
+    },
+    {
+      "identity" : "swift-numerics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-numerics",
+      "state" : {
+        "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
+        "version" : "1.1.1"
       }
     }
   ],

@@ -1,5 +1,38 @@
 import Foundation
 
+#if arch(x86_64) && (os(macOS) || os(Linux) || targetEnvironment(macCatalyst))
+
+// On Intel macOS / Linux / macCatalyst the compiler does not provide a
+// `Float16` builtin. Use the SusanDoggie/Float16 shim (vendor-provided
+// `float16` type) and re-export it as `Float16` so call sites compile
+// uniformly across platforms.
+import Float16
+
+public typealias Float16 = float16
+
+extension Float16: Codable {
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.init(try container.decode(Float.self))
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(Float(self))
+    }
+}
+
+extension Float16: LosslessStringConvertible {
+
+    public init?(_ description: String) {
+        guard let float = Float(description) else { return nil }
+        self.init(float)
+    }
+}
+
+#endif
+
 /// IEEE 754 `binary16` (half-precision float) bit conversions.
 ///
 /// Done by hand rather than using the compiler's `Float16` builtin so this
