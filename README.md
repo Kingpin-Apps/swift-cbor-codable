@@ -228,7 +228,6 @@ time of writing (May 2026).
 | Diagnostic notation (§8) | ✓ | — | — | — |
 | Configurable decoder depth limit | ✓ | — | — | — |
 | Linux | ✓ | ✓ | ✓ | — |
-| Runtime dependencies | swift-collections | none | own core | none |
 
 ¹ Map keys limited to `Int` and `String`.
 ² Half-precision floats are decoded to `Float` but cannot be
