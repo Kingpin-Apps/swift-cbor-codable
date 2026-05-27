@@ -1,3 +1,9 @@
+## 0.3.1 (2026-05-27)
+
+### Fix
+
+- handle cross platform Float16
+
 ## 0.3.0 (2026-05-26)
 
 ### Feat
