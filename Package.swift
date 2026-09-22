@@ -21,7 +21,9 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.4"),
-        .package(url: "https://github.com/attaswift/BigInt.git", from: "5.7.0"),
+        // BigInt 6.x is source-compatible with 5.7.0; the major bump only raised the
+        // manifest's tools version. Keep 5.x admissible for consumers still on it.
+        .package(url: "https://github.com/attaswift/BigInt.git", "5.7.0"..<"7.0.0"),
         .package(url: "https://github.com/SusanDoggie/Float16.git", from: "1.1.1"),
     ],
     targets: [
