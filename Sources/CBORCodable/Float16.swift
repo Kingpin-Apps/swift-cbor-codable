@@ -10,7 +10,7 @@ import Float16
 
 public typealias Float16 = float16
 
-extension Float16: Codable {
+extension Float16: @retroactive Decodable, @retroactive Encodable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -23,7 +23,7 @@ extension Float16: Codable {
     }
 }
 
-extension Float16: LosslessStringConvertible {
+extension Float16: @retroactive LosslessStringConvertible {
 
     public init?(_ description: String) {
         guard let float = Float(description) else { return nil }

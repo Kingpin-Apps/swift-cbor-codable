@@ -35,7 +35,7 @@ let stream: CBOR = .indefiniteArray([1, 2, 3])
 ```
 
 Floats written as literals always produce ``CBOR/double(_:)``. To opt
-into the smallest exact form, use ``CBOR/shortestFloat(_:)-7nb6w``:
+into the smallest exact form, use ``CBOR/shortestFloat(_:)-(Double)``:
 
 ```swift
 let one: CBOR = .shortestFloat(1.0)   // → .half(0x3c00)

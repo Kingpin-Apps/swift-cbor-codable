@@ -336,7 +336,7 @@ extension CBOR {
     /// Best-effort conversion from a heterogeneous `Any` value into a CBOR
     /// value. Intended for dynamic-language interop and code that holds
     /// values in `[AnyHashable: Any]` dictionaries — when you have a known
-    /// static type, prefer the matching ``init(_:)`` overload instead.
+    /// static type, prefer the matching ``init(_:)-(Int)`` overload instead.
     ///
     /// Supported types and their projection:
     ///
@@ -345,7 +345,7 @@ extension CBOR {
     /// - `Data` → `.byteString`.
     /// - `Bool` → `.boolean`.
     /// - Any Swift integer type → `.unsignedInt` / `.negativeInt` via
-    ///   the same signed/unsigned rule as ``init(_:)``.
+    ///   the same signed/unsigned rule as ``init(_:)-(Int)``.
     /// - `Float`, `Double` → `.float`, `.double`.
     /// - `Date` → tag 1 wrapping a double.
     /// - `URL` → tag 32 wrapping a text string.
