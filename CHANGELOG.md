@@ -1,3 +1,9 @@
+## 0.4.0 (2026-10-29)
+
+### Feat
+
+- add CBOR.encoded for items written out verbatim
+
 ## 0.3.5 (2026-10-29)
 
 ### Fix
