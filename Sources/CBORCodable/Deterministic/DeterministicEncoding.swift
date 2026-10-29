@@ -56,6 +56,11 @@ enum DeterministicEncoding {
 
         case .tagged(let tag, let inner):
             return .tagged(tag, try canonicalize(inner))
+
+        case .encoded(let bytes):
+            // Canonical form is a property of the value, so read it back.
+            var reader = CBORReader(bytes)
+            return try canonicalize(reader.decodeTopLevel())
         }
     }
 

@@ -117,6 +117,9 @@ public struct CBORWriter: Sendable {
             encodeHead(major: .tagged, argument: tag)
             try encode(inner)
 
+        case .encoded(let bytes):
+            append(contentsOf: bytes)
+
         case .boolean(false):
             append(MajorType.simpleOrFloat.prefix | 20)
         case .boolean(true):

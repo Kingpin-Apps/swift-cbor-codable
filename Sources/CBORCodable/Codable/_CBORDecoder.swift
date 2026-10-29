@@ -75,6 +75,7 @@ func describe(_ v: CBOR) -> String {
     case .null: return "null"
     case .undefined: return "undefined"
     case .half, .float, .double: return "floating-point value"
+    case .encoded: return "encoded item"
     }
 }
 

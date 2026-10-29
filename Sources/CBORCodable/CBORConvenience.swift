@@ -248,6 +248,7 @@ extension CBOR {
     /// | `.indefiniteTextString` | `String` (chunks joined) | chunk boundaries |
     /// | `.indefiniteArray` | `[Any?]` | the fact that the wire form was indefinite-length |
     /// | `.indefiniteMap` | `OrderedDictionary<AnyHashable, Any?>` | same |
+    /// | `.encoded(bytes)` | the encoded value's `unwrapped` | the exact bytes; a repeated map key keeps its later value |
     public var unwrapped: Any? {
         switch self {
 
@@ -295,6 +296,12 @@ extension CBOR {
 
         case .double(let value):
             return value
+
+        case .encoded(let bytes):
+            // The value it encodes, read back; nil when the bytes are not one
+            // well-formed item.
+            var reader = CBORReader(bytes, allowDuplicateMapKeys: true)
+            return (try? reader.decodeTopLevel())?.unwrapped ?? nil
 
         case .indefiniteByteString(let chunks):
             var out = Data()

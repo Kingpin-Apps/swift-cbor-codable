@@ -65,6 +65,10 @@ enum DeterministicValidation {
         case .tagged(_, let inner):
             try validate(inner)
 
+        case .encoded(let bytes):
+            var reader = CBORReader(bytes, strict: true)
+            try validate(reader.decodeTopLevel())
+
         case .indefiniteByteString, .indefiniteTextString,
              .indefiniteArray, .indefiniteMap:
             // The reader rejects these in strict mode at the wire level;

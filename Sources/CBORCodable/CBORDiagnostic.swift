@@ -139,6 +139,14 @@ extension CBOR {
                 v.appendDiagnostic(to: &out)
             }
             out += "}"
+
+        case .encoded(let bytes):
+            // Written out as it is, so shown as its bytes.
+            out += "encoded(h'"
+            for byte in bytes {
+                out += String(format: "%02x", byte)
+            }
+            out += "')"
         }
     }
 }
