@@ -33,8 +33,9 @@ public enum CBOR: Hashable, Sendable {
     ///
     /// For a value that has to keep the exact bytes it was read from — a hash
     /// is taken over them — or that the other cases cannot hold, such as a map
-    /// that repeats a key. The reader never produces it. The bytes must be
-    /// exactly one well-formed data item.
+    /// that repeats a key. The reader produces it only for items nested at
+    /// least `rawDepth` deep, when that is set. The bytes must be exactly one
+    /// well-formed data item.
     case encoded(Data)
 }
 

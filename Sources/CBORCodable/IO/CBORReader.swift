@@ -28,6 +28,17 @@ public struct CBORReader: Sendable {
     /// longer re-encode to the bytes it was read from.
     public let allowDuplicateMapKeys: Bool
 
+    /// When set, an item nested this deep or deeper is not decoded: it is
+    /// returned as ``CBOR/encoded(_:)`` holding its exact bytes, after a check
+    /// that they are one well-formed item. The top-level item is at depth 0.
+    ///
+    /// The check walks the item with a heap-allocated stack rather than by
+    /// recursion, so an item nested arbitrarily deep costs no call stack and
+    /// is not subject to `maxDepth`. It covers the wire format — heads,
+    /// lengths, indefinite-length chunks and breaks, UTF-8 text — but not
+    /// duplicate map keys, which the caller handles when it reads the bytes.
+    public let rawDepth: Int?
+
     /// Current nesting depth. Bumped by `decode()` on entry and dropped
     /// in its `defer`.
     @usableFromInline var depth: Int = 0
@@ -43,13 +54,15 @@ public struct CBORReader: Sendable {
         _ data: Data,
         maxDepth: Int = defaultMaxDepth,
         strict: Bool = false,
-        allowDuplicateMapKeys: Bool = false
+        allowDuplicateMapKeys: Bool = false,
+        rawDepth: Int? = nil
     ) {
         self.bytes = Array(data)
         self.index = 0
         self.maxDepth = maxDepth
         self.strict = strict
         self.allowDuplicateMapKeys = allowDuplicateMapKeys
+        self.rawDepth = rawDepth
     }
 
     public var isAtEnd: Bool { index >= bytes.count }
@@ -158,6 +171,9 @@ public struct CBORReader: Sendable {
     // MARK: - Value decoding
 
     public mutating func decode() throws -> CBOR {
+        if let rawDepth, depth >= rawDepth {
+            return .encoded(try readRawItem())
+        }
         if depth >= maxDepth {
             throw CBORError.depthExceeded(maxDepth: maxDepth)
         }
@@ -239,6 +255,102 @@ public struct CBORReader: Sendable {
             try DeterministicValidation.validate(value)
         }
         return value
+    }
+
+    // MARK: - Raw items
+
+    /// A container whose items ``readRawItem()`` has still to step over.
+    private struct RawFrame {
+        /// Items left, or `nil` until a break.
+        var remaining: UInt64?
+        /// Items stepped over so far in an indefinite-length map, whose
+        /// break must not fall between a key and its value.
+        var indefiniteMapItems: Int?
+    }
+
+    /// The bytes of the next item, checked to be well-formed, without decoding
+    /// it. Iterative, so the item's depth costs no call stack.
+    public mutating func readRawItem() throws -> Data {
+        let start = index
+        var stack: [RawFrame] = []
+        repeat {
+            let head = try readHead()
+            switch head.majorType {
+            case .unsignedInt, .negativeInt:
+                try rejectIndefinite(head)
+            case .byteString:
+                if head.isIndefinite {
+                    _ = try readIndefiniteByteStringChunks()
+                } else {
+                    try skipBytes(head.argument)
+                }
+            case .textString:
+                if head.isIndefinite {
+                    _ = try readIndefiniteTextStringChunks()
+                } else {
+                    let payload = try readBytes(lengthInt(head.argument))
+                    guard String(data: payload, encoding: .utf8) != nil else {
+                        throw CBORError.invalidUTF8
+                    }
+                }
+            case .array:
+                if head.isIndefinite {
+                    stack.append(RawFrame(remaining: nil))
+                } else {
+                    try checkItemCount(head.argument)
+                    stack.append(RawFrame(remaining: head.argument))
+                }
+            case .map:
+                if head.isIndefinite {
+                    stack.append(RawFrame(remaining: nil, indefiniteMapItems: 0))
+                } else {
+                    // Checked against the bytes left first, so doubling
+                    // cannot overflow.
+                    try checkItemCount(head.argument)
+                    stack.append(RawFrame(remaining: head.argument * 2))
+                }
+            case .tagged:
+                try rejectIndefinite(head)
+                stack.append(RawFrame(remaining: 1))
+            case .simpleOrFloat:
+                _ = try decodeSimpleOrFloat(head)
+            }
+            // Close every container that is complete, then claim the slot of
+            // the next item in the innermost one still open.
+            while let top = stack.last {
+                if let remaining = top.remaining {
+                    if remaining > 0 {
+                        stack[stack.count - 1].remaining = remaining - 1
+                        break
+                    }
+                    stack.removeLast()
+                } else if peekBreak() {
+                    if let items = top.indefiniteMapItems, items % 2 != 0 {
+                        throw CBORError.malformed("indefinite-length map ended between key and value")
+                    }
+                    try consumeBreak()
+                    stack.removeLast()
+                } else {
+                    if let items = top.indefiniteMapItems {
+                        stack[stack.count - 1].indefiniteMapItems = items + 1
+                    }
+                    break
+                }
+            }
+        } while !stack.isEmpty
+        return Data(bytes[start..<index])
+    }
+
+    /// Steps over `count` bytes of payload.
+    private mutating func skipBytes(_ count: UInt64) throws {
+        guard count <= UInt64(remaining) else { throw CBORError.prematureEnd }
+        index &+= Int(count)
+    }
+
+    /// Rejects a container that claims more items than there are bytes
+    /// left, each item taking at least one.
+    private func checkItemCount(_ count: UInt64) throws {
+        guard count <= UInt64(remaining) else { throw CBORError.prematureEnd }
     }
 
     // MARK: - Indefinite-length helpers

@@ -31,6 +31,17 @@ public final class CBORDecoder {
     /// earlier one, so the decoded value no longer re-encodes to its input.
     public var allowDuplicateMapKeys: Bool = false
 
+    /// When set, an item nested this deep or deeper is not decoded but
+    /// handed over as ``CBOR/encoded(_:)`` with its exact bytes, checked to be
+    /// well-formed. The top-level item is at depth 0.
+    ///
+    /// For input whose nesting has no fixed bound: the decoded tree stays
+    /// shallow, and the caller reads the deep parts from their bytes in
+    /// whatever way suits it. `maxDepth` then never applies when it is larger.
+    /// With `requireDeterministic`, the deep parts are still validated in full,
+    /// and so are subject to `maxDepth`.
+    public var rawDepth: Int?
+
     public init() {}
 
     /// Decode bytes into a value of type `T`.
@@ -42,7 +53,8 @@ public final class CBORDecoder {
             data,
             maxDepth: maxDepth,
             strict: requireDeterministic,
-            allowDuplicateMapKeys: allowDuplicateMapKeys
+            allowDuplicateMapKeys: allowDuplicateMapKeys,
+            rawDepth: rawDepth
         )
         let cbor: CBOR
         do {
