@@ -26,6 +26,11 @@ public final class CBORDecoder {
     /// hashes.
     public var requireDeterministic: Bool = false
 
+    /// When false (the default), a map that repeats a key fails to decode.
+    /// Set it to accept such maps; the later value then replaces the
+    /// earlier one, so the decoded value no longer re-encodes to its input.
+    public var allowDuplicateMapKeys: Bool = false
+
     public init() {}
 
     /// Decode bytes into a value of type `T`.
@@ -33,7 +38,12 @@ public final class CBORDecoder {
     /// The input is required to be a single, complete CBOR data item with
     /// no trailing bytes.
     public func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
-        var reader = CBORReader(data, maxDepth: maxDepth, strict: requireDeterministic)
+        var reader = CBORReader(
+            data,
+            maxDepth: maxDepth,
+            strict: requireDeterministic,
+            allowDuplicateMapKeys: allowDuplicateMapKeys
+        )
         let cbor: CBOR
         do {
             cbor = try reader.decodeTopLevel()

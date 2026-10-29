@@ -22,6 +22,12 @@ public struct CBORReader: Sendable {
     /// `DeterministicValidation` after the full item is decoded.
     public let strict: Bool
 
+    /// When false (the default), a map that repeats a key is rejected.
+    /// `CBOR` holds a map as an `OrderedDictionary`, which keeps one entry
+    /// per key, so a repeated key would be dropped and the map would no
+    /// longer re-encode to the bytes it was read from.
+    public let allowDuplicateMapKeys: Bool
+
     /// Current nesting depth. Bumped by `decode()` on entry and dropped
     /// in its `defer`.
     @usableFromInline var depth: Int = 0
@@ -33,11 +39,17 @@ public struct CBORReader: Sendable {
     /// `swift-testing` allocates per test case.
     public static let defaultMaxDepth: Int = 128
 
-    public init(_ data: Data, maxDepth: Int = defaultMaxDepth, strict: Bool = false) {
+    public init(
+        _ data: Data,
+        maxDepth: Int = defaultMaxDepth,
+        strict: Bool = false,
+        allowDuplicateMapKeys: Bool = false
+    ) {
         self.bytes = Array(data)
         self.index = 0
         self.maxDepth = maxDepth
         self.strict = strict
+        self.allowDuplicateMapKeys = allowDuplicateMapKeys
     }
 
     public var isAtEnd: Bool { index >= bytes.count }
@@ -202,7 +214,7 @@ public struct CBORReader: Sendable {
             for _ in 0..<count {
                 let k = try decode()
                 let v = try decode()
-                dict.updateValue(v, forKey: k)
+                try insert(v, forKey: k, into: &dict)
             }
             return .map(dict)
 
@@ -316,11 +328,19 @@ public struct CBORReader: Sendable {
                 throw CBORError.malformed("indefinite-length map ended between key and value")
             }
             let value = try decode()
-            dict.updateValue(value, forKey: key)
+            try insert(value, forKey: key, into: &dict)
         }
     }
 
     // MARK: - Helpers
+
+    private func insert(
+        _ value: CBOR, forKey key: CBOR, into dict: inout OrderedDictionary<CBOR, CBOR>
+    ) throws {
+        if dict.updateValue(value, forKey: key) != nil, !allowDuplicateMapKeys {
+            throw CBORError.malformed("duplicate map key \(key)")
+        }
+    }
 
     private func rejectIndefinite(_ head: Head) throws {
         if head.isIndefinite {
