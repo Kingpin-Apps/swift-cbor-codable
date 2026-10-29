@@ -1,3 +1,9 @@
+## 0.3.5 (2026-10-29)
+
+### Fix
+
+- reject duplicate map keys on decode
+
 ## 0.3.4 (2026-09-26)
 
 ### Fix
