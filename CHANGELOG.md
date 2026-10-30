@@ -1,3 +1,9 @@
+## 0.5.0 (2026-10-30)
+
+### Feat
+
+- hand over items past a depth as their raw bytes
+
 ## 0.4.0 (2026-10-29)
 
 ### Feat
