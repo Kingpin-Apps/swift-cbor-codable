@@ -77,11 +77,11 @@ public struct CBORReader: Sendable {
     }
 
     public mutating func readBytes(_ count: Int) throws -> Data {
-        guard count >= 0, index &+ count <= bytes.count else {
+        guard count >= 0, count <= bytes.count - index else {
             throw CBORError.prematureEnd
         }
-        defer { index &+= count }
-        return Data(bytes[index..<(index &+ count)])
+        defer { index += count }
+        return Data(bytes[index..<(index + count)])
     }
 
     public mutating func readUInt16() throws -> UInt16 {
@@ -204,7 +204,7 @@ public struct CBORReader: Sendable {
             }
             let count = try lengthInt(head.argument)
             let payload = try readBytes(count)
-            guard let s = String(data: payload, encoding: .utf8) else {
+            guard let s = utf8String(payload) else {
                 throw CBORError.invalidUTF8
             }
             return .textString(s)
@@ -289,7 +289,7 @@ public struct CBORReader: Sendable {
                     _ = try readIndefiniteTextStringChunks()
                 } else {
                     let payload = try readBytes(lengthInt(head.argument))
-                    guard String(data: payload, encoding: .utf8) != nil else {
+                    guard utf8String(payload) != nil else {
                         throw CBORError.invalidUTF8
                     }
                 }
@@ -408,7 +408,7 @@ public struct CBORReader: Sendable {
             }
             let count = try lengthInt(head.argument)
             let payload = try readBytes(count)
-            guard let s = String(data: payload, encoding: .utf8) else {
+            guard let s = utf8String(payload) else {
                 throw CBORError.invalidUTF8
             }
             chunks.append(s)
@@ -458,6 +458,14 @@ public struct CBORReader: Sendable {
         if head.isIndefinite {
             throw CBORError.reservedAdditionalInfo(head.info)
         }
+    }
+
+    /// Decodes UTF-8 keeping every byte. Foundation's `String(data:encoding:)`
+    /// drops a leading byte order mark, so two different payloads would decode
+    /// to the same string.
+    private func utf8String(_ payload: Data) -> String? {
+        let s = String(decoding: payload, as: UTF8.self)
+        return s.utf8.elementsEqual(payload) ? s : nil
     }
 
     private func lengthInt(_ argument: UInt64) throws -> Int {

@@ -5,9 +5,10 @@ import Foundation
 /// convention as JSONEncoder/JSONDecoder: if the `CodingKey` carries an
 /// integer value, use a CBOR integer; otherwise use a text string.
 ///
-/// This mirrors what users implicitly expect when encoding `[Int: T]`
-/// (integer keys) versus `[String: T]` or structs with named properties
-/// (string keys).
+/// Structs and enums with `Int`-backed keys get integer keys; named
+/// properties get string keys. `[String: T]` and `[Int: T]` don't go through
+/// here: their coding keys carry both forms, so `DictionaryKeys.swift`
+/// codes them straight from the map.
 @inlinable
 func codingKeyToCBOR(_ key: CodingKey) -> CBOR {
     if let i = key.intValue {

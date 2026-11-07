@@ -95,9 +95,15 @@ enum DeterministicEncoding {
         encoded.sort { lhs, rhs in
             lhs.bytes.lexicographicallyPrecedes(rhs.bytes)
         }
+        // Distinct keys can share one canonical encoding (a float and a half
+        // of the same value, say). Merging them would drop an entry from the
+        // bytes that get hashed or signed, so refuse instead.
         var result = OrderedDictionary<CBOR, CBOR>()
-        for entry in encoded {
-            result.updateValue(entry.value, forKey: entry.key)
+        for (i, entry) in encoded.enumerated() {
+            if i > 0, encoded[i - 1].bytes == entry.bytes {
+                throw CBORError.malformed("map keys collide after canonicalization: \(entry.key)")
+            }
+            result[entry.key] = entry.value
         }
         return result
     }

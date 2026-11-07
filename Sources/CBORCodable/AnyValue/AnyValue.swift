@@ -492,17 +492,26 @@ extension AnyValue: Decodable {
             if let v = try? container.decode(Int.self) { self = .int(v); return }
             if let v = try? container.decode(Int64.self) { self = .int64(v); return }
             if let v = try? container.decode(UInt64.self) { self = .uint64(v); return }
-            if let v = try? container.decode(BigInt.self) { self = .integer(v); return }
             if let v = try? container.decode(Double.self) { self = .double(v); return }
+            // Before BigInt: BigInt's Decodable also reads numeric strings and
+            // ["+"|"-", words...] arrays, which would hide their real type.
             if let v = try? container.decode(String.self) { self = .string(v); return }
             if let v = try? container.decode([AnyValue].self) { self = .array(v); return }
+            if let v = try? container.decode(BigInt.self) { self = .integer(v); return }
         }
 
         // Fall back to a keyed-container decode for dictionaries.
         if let container = try? decoder.container(keyedBy: AnyValueCodingKey.self) {
             var dict = AnyDictionary()
             for key in container.allKeys {
-                dict[.string(key.stringValue)] = try container.decode(AnyValue.self, forKey: key)
+                let k: AnyValue = key.intValue.map { .int($0) } ?? .string(key.stringValue)
+                let value = try container.decode(AnyValue.self, forKey: key)
+                guard dict.updateValue(value, forKey: k) == nil else {
+                    throw DecodingError.dataCorruptedError(
+                        forKey: key, in: container,
+                        debugDescription: "Two map keys both decode to \(k)."
+                    )
+                }
             }
             self = .dictionary(dict)
             return

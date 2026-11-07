@@ -16,14 +16,18 @@ deterministic-encoding mode.
   cross-implementation byte stability.
 - Strict decoding (`requireDeterministic = true`) — rejects any input
   that isn't §4.2-canonical, useful when verifying signed payloads.
-- Decoder depth limit (default 128) protects against adversarial input
-  that would otherwise overflow the call stack.
+- Hardened against hostile input: a depth limit (default 128) guards the
+  call stack, declared lengths are checked against the bytes actually
+  present, and a map that repeats a key fails to decode by default. Map
+  keys compare by their encoded bytes, so NaN, signed-zero and
+  differently-normalized text keys behave predictably.
 - `CBOR` literal conformances and `CBOR.diagnostic` (RFC 8949 §8) for
   ergonomic value construction and debugging.
 - Manual half-precision conversion so the package builds on every
   platform Swift supports — including Linux (verified in CI).
-- One runtime dependency: `apple/swift-collections` for the ordered
-  dictionary backing CBOR maps.
+- Small dependency set: `apple/swift-collections` (the ordered dictionary
+  backing CBOR maps), `attaswift/BigInt` (for `AnyValue`'s arbitrary-size
+  integers) and, on macOS / Linux, `SusanDoggie/Float16`.
 
 ## Installation
 
@@ -107,6 +111,9 @@ Effects:
 - Floats reduced to the shortest exact representation (so `1.0` is 3
   bytes, not 9).
 - All NaNs canonicalize to the half-precision quiet NaN `0xf97e00`.
+- Keys that are distinct values but canonicalize to the same bytes (for
+  example a single- and a half-precision `1.0`) make encoding throw rather
+  than silently drop an entry.
 
 CDE / length-first sorting (§4.2.3) and ledger-specific quirks (e.g.
 Cardano's CIP-21 set tag) intentionally stay out of this package — they

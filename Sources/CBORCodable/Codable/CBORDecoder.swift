@@ -12,7 +12,7 @@ public final class CBORDecoder {
 
     /// Maximum nesting depth accepted by the decoder. Every level of
     /// array / map / indefinite-length container / tag wrapping counts.
-    /// Defaults to `CBORReader.defaultMaxDepth` (512) — generous for any
+    /// Defaults to `CBORReader.defaultMaxDepth` (128) — generous for any
     /// realistic Codable graph, low enough to defuse adversarial input.
     public var maxDepth: Int = CBORReader.defaultMaxDepth
 

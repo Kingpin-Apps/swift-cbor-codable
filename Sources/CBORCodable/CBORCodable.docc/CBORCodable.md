@@ -23,8 +23,9 @@ CBORCodable provides:
 - ``CBOR/diagnostic`` for RFC 8949 §8 diagnostic notation — useful for
   debugging and snapshot tests.
 
-The package has no third-party runtime dependencies beyond
-`apple/swift-collections` (used for `OrderedDictionary`).
+Runtime dependencies are `apple/swift-collections` (for
+`OrderedDictionary`), `attaswift/BigInt` (for ``AnyValue``'s arbitrary-size
+integers) and, on macOS and Linux, `SusanDoggie/Float16`.
 
 ## Quick start
 

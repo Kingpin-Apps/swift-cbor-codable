@@ -83,6 +83,12 @@ func encodeToCBOR<T: Encodable>(
     if let uuid = value as? UUID {
         return .tagged(CBORTag.uuid.rawValue, .byteString(uuidBytes(uuid)))
     }
+    if let any = value as? AnyValue {
+        return try any.cbor(codingPath: codingPath, userInfo: userInfo)
+    }
+    if let dict = value as? CBORStringKeyedEncodable {
+        return try dict.encodeCBORMap(codingPath: codingPath, userInfo: userInfo)
+    }
     var result: CBOR? = nil
     let encoder = _CBOREncoder(codingPath: codingPath, userInfo: userInfo) { v in
         result = v

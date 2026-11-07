@@ -153,15 +153,29 @@ extension CBOR {
 
 private func escapeForDiagnostic(_ s: String) -> String {
     var out = ""
-    out.reserveCapacity(s.count)
-    for character in s {
-        switch character {
+    out.reserveCapacity(s.utf8.count)
+    for scalar in s.unicodeScalars {
+        switch scalar {
         case "\\": out += #"\\"#
         case "\"": out += #"\""#
         case "\n": out += #"\n"#
         case "\r": out += #"\r"#
         case "\t": out += #"\t"#
-        default:   out.append(character)
+        default:
+            // Controls, bidi overrides and line separators would reach a
+            // terminal or log viewer raw, so write them as \uXXXX.
+            let v = scalar.value
+            switch scalar.properties.generalCategory {
+            case .control, .format, .lineSeparator, .paragraphSeparator:
+                if v > 0xFFFF {
+                    let u = v - 0x10000
+                    out += String(format: "\\u%04x\\u%04x", 0xD800 + (u >> 10), 0xDC00 + (u & 0x3FF))
+                } else {
+                    out += String(format: "\\u%04x", v)
+                }
+            default:
+                out.unicodeScalars.append(scalar)
+            }
         }
     }
     return out

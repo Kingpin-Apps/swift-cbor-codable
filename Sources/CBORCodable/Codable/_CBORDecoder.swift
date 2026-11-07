@@ -240,6 +240,20 @@ func decodeFromCBOR<T: Decodable>(
     if type == UUID.self {
         return try decodeUUID(value, codingPath: codingPath) as! T
     }
+    if type == AnyValue.self {
+        return try AnyValue(cbor: value, codingPath: codingPath) as! T
+    }
+    switch value.untagged {
+    case .map(let map), .indefiniteMap(let map):
+        if let dict = type as? CBORStringKeyedDictionary.Type {
+            return try dict.decodeCBORMap(map, codingPath: codingPath, userInfo: userInfo) as! T
+        }
+        if let dict = type as? CBORIntKeyedDictionary.Type {
+            return try dict.decodeCBORMap(map, codingPath: codingPath, userInfo: userInfo) as! T
+        }
+    default:
+        break
+    }
     let decoder = _CBORDecoder(value: value, codingPath: codingPath, userInfo: userInfo)
     return try T(from: decoder)
 }
@@ -250,6 +264,14 @@ func decodeDate(_ value: CBOR, codingPath: [CodingKey]) throws -> Date {
     // Tag 1 wraps the number; we strip it via `untagged` and accept any
     // numeric form (half / single / double / unsigned / negative integer).
     let seconds = try decodeDouble(value, codingPath: codingPath)
+    // A NaN or infinite date compares false against every real date, so it
+    // would pass an expiry check written as `if notAfter < now { reject }`.
+    guard seconds.isFinite else {
+        throw DecodingError.dataCorrupted(.init(
+            codingPath: codingPath,
+            debugDescription: "Epoch date must be a finite number, got \(seconds)."
+        ))
+    }
     return Date(timeIntervalSince1970: seconds)
 }
 

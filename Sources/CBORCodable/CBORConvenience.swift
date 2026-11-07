@@ -340,6 +340,20 @@ extension CBOR {
 // MARK: - Dynamic Any → CBOR projection
 
 extension CBOR {
+    private static func fromNSNumber(_ n: NSNumber) -> CBOR {
+        #if canImport(Darwin)
+        if CFGetTypeID(n) == CFBooleanGetTypeID() { return .boolean(n.boolValue) }
+        #else
+        if String(cString: n.objCType) == "c" { return .boolean(n.boolValue) }
+        #endif
+        switch String(cString: n.objCType) {
+        case "f": return .float(n.floatValue)
+        case "d": return .double(n.doubleValue)
+        case "C", "S", "I", "L", "Q": return .unsignedInt(n.uint64Value)
+        default: return CBOR(n.int64Value)
+        }
+    }
+
     /// Best-effort conversion from a heterogeneous `Any` value into a CBOR
     /// value. Intended for dynamic-language interop and code that holds
     /// values in `[AnyHashable: Any]` dictionaries — when you have a known
@@ -351,6 +365,9 @@ extension CBOR {
     /// - `String` → `.textString`.
     /// - `Data` → `.byteString`.
     /// - `Bool` → `.boolean`.
+    /// - `NSNumber` → by what it holds: a Boolean `NSNumber` → `.boolean`,
+    ///   any other → an integer or float case. (A plain `as? Bool` would
+    ///   also match the numbers 0 and 1 that `JSONSerialization` returns.)
     /// - Any Swift integer type → `.unsignedInt` / `.negativeInt` via
     ///   the same signed/unsigned rule as ``init(_:)-(Int)``.
     /// - `Float`, `Double` → `.float`, `.double`.
@@ -366,6 +383,11 @@ extension CBOR {
         if let v = value as? CBOR { return v }
         if let v = value as? String { return .textString(v) }
         if let v = value as? Data { return .byteString(v) }
+        // An NSNumber holding 0 or 1 (as JSONSerialization returns for
+        // numbers) also casts to Bool, so classify it by what it holds.
+        if type(of: value) is NSNumber.Type, let n = value as? NSNumber {
+            return fromNSNumber(n)
+        }
         if let v = value as? Bool { return .boolean(v) }
 
         // Concrete integer types — order matters only because some

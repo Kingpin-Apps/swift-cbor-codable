@@ -29,6 +29,10 @@ Effects:
   half-precision is written as half.
 - **Canonical NaN.** Every NaN — half, single, or double, with any
   payload — is encoded as `0xf97e00`.
+- **Unique keys.** Two keys that are different values but have the same
+  deterministic encoding — a single- and a half-precision `1.0`, or an
+  indefinite- and a definite-length `"k"` — make encoding throw, since
+  merging them would drop an entry from the bytes being hashed or signed.
 
 ## Strict decoding
 
