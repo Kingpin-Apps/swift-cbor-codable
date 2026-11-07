@@ -1,3 +1,9 @@
+## 0.6.0 (2026-11-06)
+
+### Fix
+
+- harden decoding and encoding against hostile input
+
 ## 0.5.0 (2026-10-30)
 
 ### Feat
